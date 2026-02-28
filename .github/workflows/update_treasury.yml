@@ -1,0 +1,39 @@
+name: Update Treasury MSPD Data
+
+on:
+  schedule:
+    # 매월 5일 UTC 12:00 (MSPD는 보통 월초에 발표)
+    - cron: '0 12 5 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-treasury:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Fetch Treasury MSPD data
+        run: python scripts/fetch_treasury.py
+
+      - name: Process combined data
+        run: python scripts/process_combined.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "🏛️ Update Treasury MSPD data $(date +'%Y-%m-%d')"
+          git push
