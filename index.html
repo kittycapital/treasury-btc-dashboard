@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasury QE vs Bitcoin | HerdVibe</title>
+    <meta property="og:title" content="Treasury QE vs Bitcoin - 12개월 변화율 상관관계">
+    <meta property="og:description" content="미 국채 발행량(Treasury QE)과 비트코인 가격의 12개월 변화율 비교 차트">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --border: #1e1e2e;
+            --text-primary: #e8e8ef;
+            --text-secondary: #8888a0;
+            --text-muted: #555570;
+            --btc-color: #f7931a;
+            --btc-color-dim: rgba(247, 147, 26, 0.15);
+            --treasury-color: #4a7cff;
+            --treasury-color-dim: rgba(74, 124, 255, 0.15);
+            --positive: #22c55e;
+            --negative: #ef4444;
+            --accent: #8b5cf6;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .header h1 span.highlight {
+            color: var(--treasury-color);
+        }
+
+        .header .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-card .value.positive { color: var(--positive); }
+        .stat-card .value.negative { color: var(--negative); }
+        .stat-card .value.btc { color: var(--btc-color); }
+        .stat-card .value.treasury { color: var(--treasury-color); }
+        .stat-card .value.accent { color: var(--accent); }
+
+        .stat-card .detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .period-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .period-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        .period-btn.active {
+            background: var(--treasury-color);
+            border-color: var(--treasury-color);
+            color: #fff;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 420px;
+        }
+
+        /* Legend */
+        .chart-legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.btc { background: var(--btc-color); }
+        .legend-dot.treasury { background: var(--treasury-color); }
+
+        .legend-label {
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .footer .source {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .footer .updated {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Tooltip */
+        .custom-tooltip {
+            background: rgba(22, 22, 31, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Noto Sans KR', sans-serif;
+            pointer-events: none;
+        }
+
+        .custom-tooltip .tooltip-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .custom-tooltip .tooltip-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .custom-tooltip .tooltip-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .custom-tooltip .tooltip-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 420px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--treasury-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            body { padding: 12px; }
+            .header h1 { font-size: 17px; }
+            .stats-row { gap: 8px; }
+            .stat-card { padding: 10px 14px; min-width: 100px; }
+            .stat-card .value { font-size: 18px; }
+            .chart-wrapper { height: 320px; }
+            .chart-legend { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1><span class="highlight">Treasury QE</span> vs Bitcoin</h1>
+            <div class="subtitle">12-Month Change (Normalized) · 미 국채 발행량과 비트코인 가격의 상관관계</div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="label">Correlation (r)</div>
+                <div class="value accent" id="stat-corr">—</div>
+                <div class="detail" id="stat-corr-detail">Pearson</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">BTC 12M Change</div>
+                <div class="value btc" id="stat-btc">—</div>
+                <div class="detail" id="stat-btc-detail">z-score</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Treasury 12M Change</div>
+                <div class="value treasury" id="stat-treasury">—</div>
+                <div class="detail" id="stat-treasury-detail">z-score</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Data Points</div>
+                <div class="value" id="stat-points" style="color: var(--text-primary);">—</div>
+                <div class="detail" id="stat-range">monthly</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="period-btn" data-start="2015">2015~</button>
+            <button class="period-btn" data-start="2018">2018~</button>
+            <button class="period-btn active" data-start="2021">2021~</button>
+            <button class="period-btn" data-start="all">전체</button>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-dot btc"></div>
+                    <span class="legend-label">BTC/USD</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot treasury"></div>
+                    <span class="legend-label">Treasury QE (Issuance)</span>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <div class="loading" id="loading">데이터 로딩중</div>
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="source">Source: Treasury Direct (MSPD), CoinGecko</div>
+            <div class="updated" id="last-updated">—</div>
+        </div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+        let rawData = null;
+
+        // 데이터 로드
+        async function loadData() {
+            try {
+                const response = await fetch('./data/combined_data.json');
+                rawData = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                renderChart('2021');
+            } catch (err) {
+                document.getElementById('loading').textContent = '데이터 로드 실패';
+                console.error(err);
+            }
+        }
+
+        // 상관계수 계산
+        function pearsonCorrelation(x, y) {
+            const pairs = x.map((v, i) => [v, y[i]]).filter(([a, b]) => a !== null && b !== null);
+            if (pairs.length < 3) return 0;
+            const n = pairs.length;
+            const xArr = pairs.map(p => p[0]);
+            const yArr = pairs.map(p => p[1]);
+            const xMean = xArr.reduce((a, b) => a + b) / n;
+            const yMean = yArr.reduce((a, b) => a + b) / n;
+            let num = 0, denX = 0, denY = 0;
+            for (let i = 0; i < n; i++) {
+                const dx = xArr[i] - xMean;
+                const dy = yArr[i] - yMean;
+                num += dx * dy;
+                denX += dx * dx;
+                denY += dy * dy;
+            }
+            return num / Math.sqrt(denX * denY);
+        }
+
+        // 차트 렌더
+        function renderChart(startYear) {
+            if (!rawData) return;
+
+            let labels, btc, treasury;
+            if (startYear === 'all') {
+                labels = rawData.labels;
+                btc = rawData.btc;
+                treasury = rawData.treasury;
+            } else {
+                const startIdx = rawData.labels.findIndex(l => l >= startYear);
+                labels = rawData.labels.slice(startIdx);
+                btc = rawData.btc.slice(startIdx);
+                treasury = rawData.treasury.slice(startIdx);
+            }
+
+            // 상관계수 재계산
+            const r = pearsonCorrelation(btc, treasury);
+            const validPoints = btc.filter((v, i) => v !== null && treasury[i] !== null).length;
+
+            // 최신값
+            let lastBtc = null, lastTreasury = null;
+            for (let i = btc.length - 1; i >= 0; i--) {
+                if (btc[i] !== null && lastBtc === null) lastBtc = btc[i];
+                if (treasury[i] !== null && lastTreasury === null) lastTreasury = treasury[i];
+                if (lastBtc !== null && lastTreasury !== null) break;
+            }
+
+            // Stats 업데이트
+            document.getElementById('stat-corr').textContent = r >= 0 ? `+${r.toFixed(2)}` : r.toFixed(2);
+            document.getElementById('stat-corr').className = `value ${r >= 0.5 ? 'positive' : r >= 0 ? 'accent' : 'negative'}`;
+            document.getElementById('stat-btc').textContent = lastBtc !== null ? (lastBtc >= 0 ? '+' : '') + lastBtc.toFixed(2) : '—';
+            document.getElementById('stat-treasury').textContent = lastTreasury !== null ? (lastTreasury >= 0 ? '+' : '') + lastTreasury.toFixed(2) : '—';
+            document.getElementById('stat-points').textContent = validPoints;
+            document.getElementById('stat-range').textContent = `${labels[0]} ~ ${labels[labels.length - 1]}`;
+            document.getElementById('last-updated').textContent = `Updated: ${rawData.last_updated || '—'}`;
+
+            // 라벨 포맷
+            const displayLabels = labels.map(l => {
+                const [y, m] = l.split('-');
+                return `${y}.${m || ''}`;
+            });
+
+            // 차트
+            if (chartInstance) chartInstance.destroy();
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: displayLabels,
+                    datasets: [
+                        {
+                            label: 'BTC 12M Change (z-score)',
+                            data: btc,
+                            borderColor: '#f7931a',
+                            backgroundColor: 'rgba(247, 147, 26, 0.08)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: '#f7931a',
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 2,
+                            tension: 0.3,
+                            fill: false,
+                            spanGaps: true,
+                            order: 1
+                        },
+                        {
+                            label: 'Treasury QE 12M Change (z-score)',
+                            data: treasury,
+                            borderColor: '#4a7cff',
+                            backgroundColor: 'rgba(74, 124, 255, 0.08)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: '#4a7cff',
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 2,
+                            tension: 0.3,
+                            fill: false,
+                            spanGaps: true,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(22, 22, 31, 0.95)',
+                            borderColor: 'rgba(30, 30, 46, 1)',
+                            borderWidth: 1,
+                            titleFont: {
+                                family: "'JetBrains Mono', monospace",
+                                size: 11,
+                                weight: '400'
+                            },
+                            bodyFont: {
+                                family: "'JetBrains Mono', monospace",
+                                size: 12,
+                                weight: '500'
+                            },
+                            titleColor: '#555570',
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            boxPadding: 4,
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.raw === null) return null;
+                                    const val = ctx.raw >= 0 ? `+${ctx.raw.toFixed(2)}` : ctx.raw.toFixed(2);
+                                    return `${ctx.dataset.label.split(' ')[0]}: ${val}σ`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                zeroLine: {
+                                    type: 'line',
+                                    yMin: 0,
+                                    yMax: 0,
+                                    borderColor: 'rgba(136, 136, 160, 0.3)',
+                                    borderWidth: 1,
+                                    borderDash: [4, 4]
+                                },
+                                corrLabel: {
+                                    type: 'label',
+                                    xValue: displayLabels[Math.floor(displayLabels.length * 0.65)],
+                                    yValue: Math.max(...btc.filter(v => v !== null)) * 0.85,
+                                    content: [`r = ${r >= 0 ? '+' : ''}${r.toFixed(2)}`],
+                                    font: {
+                                        family: "'JetBrains Mono', monospace",
+                                        size: 14,
+                                        weight: '600'
+                                    },
+                                    color: r >= 0.5 ? '#22c55e' : r >= 0 ? '#8b5cf6' : '#ef4444',
+                                    backgroundColor: 'rgba(22, 22, 31, 0.8)',
+                                    borderColor: 'rgba(30, 30, 46, 0.5)',
+                                    borderWidth: 1,
+                                    borderRadius: 6,
+                                    padding: { top: 6, bottom: 6, left: 10, right: 10 }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(30, 30, 46, 0.5)',
+                                lineWidth: 0.5
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'JetBrains Mono', monospace",
+                                    size: 11
+                                },
+                                color: '#555570',
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12
+                            },
+                            border: {
+                                color: 'rgba(30, 30, 46, 0.5)'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(30, 30, 46, 0.5)',
+                                lineWidth: 0.5
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'JetBrains Mono', monospace",
+                                    size: 11
+                                },
+                                color: '#555570',
+                                callback: function(val) {
+                                    return val.toFixed(1) + 'σ';
+                                }
+                            },
+                            border: {
+                                color: 'rgba(30, 30, 46, 0.5)'
+                            },
+                            title: {
+                                display: true,
+                                text: '12-Month Change (Z-Score)',
+                                font: {
+                                    family: "'Noto Sans KR', sans-serif",
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#555570'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Period 버튼 이벤트
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderChart(btn.dataset.start);
+            });
+        });
+
+        // 초기화
+        loadData();
+    </script>
+</body>
+</html>
