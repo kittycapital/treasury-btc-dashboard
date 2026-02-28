@@ -6,6 +6,10 @@ on:
     - cron: '0 12 5 * *'
   workflow_dispatch:
 
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -24,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: pip install pandas requests
 
+      - name: Pull latest
+        run: git pull origin main
+
       - name: Fetch Treasury MSPD data
         run: python scripts/fetch_treasury.py
 
@@ -36,5 +43,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
           git diff --staged --quiet || git commit -m "🏛️ Update Treasury MSPD data $(date +'%Y-%m-%d')"
-          git pull --rebase
+          git pull origin main --no-rebase --strategy-option theirs
           git push
