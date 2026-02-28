@@ -1,7 +1,7 @@
 """
 Treasury MSPD (Monthly Statement of Public Debt) 데이터 수집
 Source: https://api.fiscaldata.treasury.gov
-Total Public Debt Outstanding 월별 데이터
+Marketable Securities (Bills, Notes, Bonds, TIPS, FRNs) 순발행량
 """
 import requests
 import pandas as pd
@@ -11,7 +11,7 @@ import sys
 API_URL = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/debt/mspd/mspd_table_1"
 
 def fetch_treasury_data(output_path):
-    """Treasury Direct API에서 Total Public Debt Outstanding 수집"""
+    """Treasury Direct API에서 Total Marketable 데이터 수집"""
     
     all_records = []
     page = 1
@@ -20,7 +20,7 @@ def fetch_treasury_data(output_path):
     while True:
         params = {
             'fields': 'record_date,security_type_desc,total_mil_amt',
-            'filter': 'security_type_desc:eq:Total Public Debt Outstanding',
+            'filter': 'security_type_desc:eq:Total Marketable',
             'sort': '-record_date',
             'page[number]': page,
             'page[size]': page_size
@@ -44,14 +44,38 @@ def fetch_treasury_data(output_path):
         page += 1
     
     if not all_records:
-        print("No data fetched!")
+        print("No 'Total Marketable' found. Trying 'Total Public Debt Outstanding' as fallback...")
+        page = 1
+        while True:
+            params = {
+                'fields': 'record_date,security_type_desc,total_mil_amt',
+                'filter': 'security_type_desc:eq:Total Public Debt Outstanding',
+                'sort': '-record_date',
+                'page[number]': page,
+                'page[size]': page_size
+            }
+            response = requests.get(API_URL, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            records = data.get('data', [])
+            if not records:
+                break
+            all_records.extend(records)
+            meta = data.get('meta', {})
+            total_pages = meta.get('total-pages', 1)
+            if page >= total_pages:
+                break
+            page += 1
+    
+    if not all_records:
+        print("No data fetched at all!")
         sys.exit(1)
     
     df = pd.DataFrame(all_records)
     df['date'] = pd.to_datetime(df['record_date'])
     df['total_debt_mil'] = pd.to_numeric(df['total_mil_amt'], errors='coerce')
     
-    # 월별 마지막 기록만 (MSPD는 보통 월말 데이터)
+    # 월별 마지막 기록만
     df['YearMonth'] = df['date'].dt.to_period('M')
     monthly = df.sort_values('date').groupby('YearMonth').last().reset_index()
     monthly['date'] = monthly['YearMonth'].dt.to_timestamp() + pd.offsets.MonthEnd(0)
